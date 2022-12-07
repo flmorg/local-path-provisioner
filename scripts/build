@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-
 source $(dirname $0)/version
 
 cd $(dirname $0)/..
@@ -10,7 +9,7 @@ if [ "$(uname)" = "Linux" ]; then
     OTHER_LINKFLAGS="-extldflags -static -s -w"
 fi
 LINKFLAGS="-X main.VERSION=$VERSION"
-CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o bin/local-path-provisioner
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "$LINKFLAGS" -o bin/local-path-provisioner
 if [ "$CROSS" = "true" ] && [ "$ARCH" = "amd64" ]; then
     GOOS=darwin go build -ldflags "$LINKFLAGS" -o bin/local-path-provisioner-darwin
     GOOS=windows go build -ldflags "$LINKFLAGS" -o bin/local-path-provisioner-windows

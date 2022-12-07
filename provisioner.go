@@ -40,10 +40,12 @@ const (
 	helperScriptDir     = "/script"
 	helperDataVolName   = "data"
 	helperScriptVolName = "script"
+	helperVolTempDir	= "tmp"
 
 	envVolDir  = "VOL_DIR"
 	envVolMode = "VOL_MODE"
 	envVolSize = "VOL_SIZE_BYTES"
+	envVolCreateBaseDir = "VOL_CREATE_BASE_DIR"
 )
 
 const (
@@ -285,9 +287,7 @@ func (p *LocalPathProvisioner) Provision(ctx context.Context, opts pvController.
 	}
 
 	name := opts.PVName
-	folderName := strings.Join([]string{name, opts.PVC.Namespace, opts.PVC.Name}, "_")
-
-	path := filepath.Join(basePath, folderName)
+	path := basePath
 	if nodeName == "" {
 		logrus.Infof("Creating volume %v at %v", name, path)
 	} else {
@@ -490,7 +490,7 @@ func (p *LocalPathProvisioner) createHelperPod(action ActionType, cmd []string, 
 		return fmt.Errorf("volume path %s is not absolute", o.Path)
 	}
 	o.Path = filepath.Clean(o.Path)
-	parentDir, volumeDir := filepath.Split(o.Path)
+	parentDir := o.Path
 	hostPathType := v1.HostPathDirectoryOrCreate
 	lpvVolumes := []v1.Volume{
 		{
@@ -546,13 +546,12 @@ func (p *LocalPathProvisioner) createHelperPod(action ActionType, cmd []string, 
 	dataMount := addVolumeMount(&helperPod.Spec.Containers[0].VolumeMounts, helperDataVolName, parentDir)
 	parentDir = dataMount.MountPath
 	parentDir = strings.TrimSuffix(parentDir, string(filepath.Separator))
-	volumeDir = strings.TrimSuffix(volumeDir, string(filepath.Separator))
-	if parentDir == "" || volumeDir == "" || !filepath.IsAbs(parentDir) {
+	if parentDir == "" || !filepath.IsAbs(parentDir) {
 		// it covers the `/` case
 		return fmt.Errorf("invalid path %v for %v: cannot find parent dir or volume dir or parent dir is relative", action, o.Path)
 	}
 	env := []v1.EnvVar{
-		{Name: envVolDir, Value: filepath.Join(parentDir, volumeDir)},
+		{Name: envVolDir, Value: parentDir},
 		{Name: envVolMode, Value: string(o.Mode)},
 		{Name: envVolSize, Value: strconv.FormatInt(o.SizeInBytes, 10)},
 	}
@@ -573,7 +572,7 @@ func (p *LocalPathProvisioner) createHelperPod(action ActionType, cmd []string, 
 	helperPod.Spec.Volumes = append(helperPod.Spec.Volumes, lpvVolumes...)
 	helperPod.Spec.Containers[0].Command = cmd
 	helperPod.Spec.Containers[0].Env = append(helperPod.Spec.Containers[0].Env, env...)
-	helperPod.Spec.Containers[0].Args = []string{"-p", filepath.Join(parentDir, volumeDir),
+	helperPod.Spec.Containers[0].Args = []string{"-p", parentDir,
 		"-s", strconv.FormatInt(o.SizeInBytes, 10),
 		"-m", string(o.Mode),
 		"-a", string(action)}
