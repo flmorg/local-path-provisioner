@@ -1,0 +1,128 @@
+clusterRole:
+  name: clusterRole
+  rules:
+    -
+      apiGroups: [ "" ]
+      resources: [ "nodes", "persistentvolumeclaims", "configmaps" ]
+      verbs: [ "get", "list", "watch" ]
+    -
+      apiGroups: [ "" ]
+      resources: [ "endpoints", "persistentvolumes", "pods" ]
+      verbs: [ "*" ]
+    -
+      apiGroups: [ "" ]
+      resources: [ "events" ]
+      verbs: [ "create", "patch" ]
+    -
+      apiGroups: [ "storage.k8s.io" ]
+      resources: [ "storageclasses" ]
+      verbs: [ "get", "list", "watch" ]
+
+clusterRoleBinding:
+  name: binding
+  clusterRoleName: clusterRole
+  serviceAccountName: account
+
+configMaps:
+  -
+    name: config
+    data:
+      config.json: |-
+        {
+                "sharedFileSystemPath":"/cluster"
+        }
+      setup: |-
+        #!/bin/sh
+        while getopts "m:s:p:" opt
+        do
+            case $opt in
+                p)
+                absolutePath=$OPTARG
+                ;;
+                s)
+                sizeInBytes=$OPTARG
+                ;;
+                m)
+                volMode=$OPTARG
+                ;;
+            esac
+        done
+    
+        mkdir -m 0777 -p ${absolutePath}
+      teardown: |-
+        #!/bin/sh
+        while getopts "m:s:p:" opt
+        do
+            case $opt in
+                p)
+                absolutePath=$OPTARG
+                ;;
+                s)
+                sizeInBytes=$OPTARG
+                ;;
+                m)
+                volMode=$OPTARG
+                ;;
+            esac
+        done
+      helperPod.yaml: |-
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: helper-pod
+        spec:
+          containers:
+          - name: helper-pod
+            image: busybox
+            imagePullPolicy: IfNotPresent
+
+deployment:
+  replicas: 1
+  strategy:
+    type: "RollingUpdate"
+    maxSurge: 1
+    maxUnavailable: 1
+  serviceAccountName: account
+  containers:
+    -
+      name: provisioner
+      image:
+        repository: flaminel/local-path-provisioner
+        tag: latest
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 100m
+          memory: 256Mi
+      command:
+        - local-path-provisioner
+        - --debug
+        - start
+        - --service-account-name
+        - account
+        - --configmap-name
+        - config
+        - --config
+        - /etc/config/config.json
+      envFromFieldRef:
+        - name: POD_NAMESPACE
+          fieldPath: metadata.namespace
+      volumeMounts:
+        - name: config-volume
+          mountPath: /etc/config/
+  volumes:
+    -
+      name: config-volume
+      type: configMap
+      typeName: config
+
+serviceAccount:
+  name: account
+
+storageClass:
+  name: local-path
+  provisioner: rancher.io/local-path
+  volumeBindingMode: WaitForFirstConsumer
+  reclaimPolicy: Delete
