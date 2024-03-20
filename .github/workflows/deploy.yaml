@@ -10,7 +10,7 @@ on:
 jobs:
   deploy:
     name: Deploy
-    uses: Flaminel/universal-workflows/.github/workflows/chart.install.yml@main
+    uses: flmorg/universal-workflows/.github/workflows/chart.install.yml@main
     with:
       githubContext: ${{ toJSON(github) }}
       useChartMuseum: false
