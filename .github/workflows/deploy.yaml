@@ -14,5 +14,4 @@ jobs:
     with:
       githubContext: ${{ toJSON(github) }}
       useChartMuseum: false
-    secrets:
-      SECRETS_TOKEN: ${{ secrets.SECRETS_TOKEN }}
+    secrets: inherit
