@@ -29,7 +29,7 @@ configMaps:
     data:
       config.json: |-
         {
-                "sharedFileSystemPath":"/cluster"
+                "sharedFileSystemPath":"/var/cluster_data"
         }
       setup: |-
         #!/bin/sh
