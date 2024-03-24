@@ -14,4 +14,5 @@ jobs:
     with:
       githubContext: ${{ toJSON(github) }}
       useChartMuseum: false
+      forceRedeploy: true
     secrets: inherit

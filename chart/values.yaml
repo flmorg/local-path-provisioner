@@ -1,3 +1,5 @@
+forceRedeploy: true
+
 clusterRole:
   name: clusterRole
   rules:
