@@ -26,47 +26,29 @@ clusterRoleBinding:
   serviceAccountName: account
 
 configMaps:
-  -
-    name: config
+  - name: config
     data:
       config.json: |-
         {
-                "sharedFileSystemPath":"/var/cluster_data"
+                "nodePathMap":[
+                {
+                        "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
+                        "paths":["/mnt/shared/cluster"]
+                },
+                {
+                        "node":"jarvis",
+                        "paths":["/mnt/shared/cluster"]
+                }
+                ]
         }
       setup: |-
         #!/bin/sh
-        while getopts "m:s:p:" opt
-        do
-            case $opt in
-                p)
-                absolutePath=$OPTARG
-                ;;
-                s)
-                sizeInBytes=$OPTARG
-                ;;
-                m)
-                volMode=$OPTARG
-                ;;
-            esac
-        done
-    
-        mkdir -m 0777 -p ${absolutePath}
+        set -eu
+        mkdir -m 0777 -p "$VOL_DIR"
       teardown: |-
         #!/bin/sh
-        while getopts "m:s:p:" opt
-        do
-            case $opt in
-                p)
-                absolutePath=$OPTARG
-                ;;
-                s)
-                sizeInBytes=$OPTARG
-                ;;
-                m)
-                volMode=$OPTARG
-                ;;
-            esac
-        done
+        set -eu
+        echo "done"
       helperPod.yaml: |-
         apiVersion: v1
         kind: Pod
@@ -115,16 +97,32 @@ deployment:
         - name: config-volume
           mountPath: /etc/config/
   volumes:
-    -
-      name: config-volume
+    - name: config-volume
       type: configMap
       typeName: config
 
 serviceAccount:
   name: account
 
-storageClass:
-  name: local-path
-  provisioner: rancher.io/local-path
-  volumeBindingMode: WaitForFirstConsumer
-  reclaimPolicy: Delete
+storageClasses:
+  -
+    name: local-path-persistent
+    labels:
+      namespace-as-directory: "false"
+      random-directory: "false"
+    provisioner: rancher.io/local-path
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Delete
+    allowedTopologies:
+      - matchLabelExpressions:
+          - key: kubernetes.io/hostname
+            values:
+              - jarvis
+
+  - name: local-path-volatile
+    labels:
+      namespace-as-directory: "false"
+      random-directory: "true"
+    provisioner: rancher.io/local-path
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Delete
