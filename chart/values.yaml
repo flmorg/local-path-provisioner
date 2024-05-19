@@ -37,7 +37,7 @@ configMaps:
                 },
                 {
                         "node":"jarvis",
-                        "paths":["/mnt/shared/cluster"]
+                        "paths":["/mnt/shared/cluster", "/dev/dri"]
                 }
                 ]
         }
@@ -105,8 +105,7 @@ serviceAccount:
   name: account
 
 storageClasses:
-  -
-    name: local-path-persistent
+  - name: local-path-persistent
     labels:
       namespace-as-directory: "false"
       random-directory: "false"
@@ -118,7 +117,20 @@ storageClasses:
           - key: kubernetes.io/hostname
             values:
               - jarvis
-
+  - name: local-path-quicksync
+    labels:
+      namespace-as-directory: "false"
+      random-directory: "false"
+    provisioner: rancher.io/local-path
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Delete
+    parameters:
+      nodePath: /dev/dri
+    allowedTopologies:
+      - matchLabelExpressions:
+          - key: kubernetes.io/hostname
+            values:
+              - jarvis
   - name: local-path-volatile
     labels:
       namespace-as-directory: "false"
